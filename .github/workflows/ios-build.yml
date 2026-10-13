@@ -1,0 +1,62 @@
+name: iOS build (IPA)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Add iOS platform (idempotent)
+        run: npx cap add ios || true
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      # Signing is only enabled when the repo secrets exist.
+      - name: Configure signing
+        if: env.HAS_CERTS == 'true'
+        env:
+          HAS_CERTS: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        run: echo "Signing secrets present — see build below."
+
+      - name: Archive (unsigned by default)
+        run: |
+          cd ios/App
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath ../../dist/JustOneMeet.xcarchive \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Export IPA (unsigned)
+        run: |
+          cd ios/App
+          xcodebuild -exportArchive \
+            -archivePath ../../dist/JustOneMeet.xcarchive \
+            -exportPath ../../dist/ipa \
+            -exportOptionsPlist ../exportOptions.plist \
+            CODE_SIGNING_ALLOWED=NO || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: JustOneMeet-ios
+          path: |
+            dist/JustOneMeet.xcarchive
+            dist/ipa/*.ipa
+          if-no-files-found: warn

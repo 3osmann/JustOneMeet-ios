@@ -1,0 +1,10 @@
+{
+  "appId": "com.justonemeet.app",
+  "appName": "JustOneMeet",
+  "webDir": "www",
+  "server": {
+    "url": "https://just-one-meet-v2.vercel.app/",
+    "cleartext": false,
+    "androidScheme": "https"
+  }
+}
